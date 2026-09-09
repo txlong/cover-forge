@@ -377,18 +377,6 @@ const PRESETS = [
     subColor:'rgba(255,255,255,.82)', subBg:null,
     overlay:'bottom',
   },
-  {
-    name:'聚光字幕', desc:'暗角聚焦·光晕衬线大字',
-    demo:'<span class="f-serif" style="color:#fff;text-shadow:0 0 12px rgba(255,205,130,.6)">聚光字幕</span>',
-    font:'"Noto Serif SC"', weight:900,
-    color:'#FFFFFF', stroke:null, strokeRatio:0,
-    glow:'rgba(255,205,130,.42)',
-    shadow:{color:'rgba(0,0,0,.8)', blur:0.09, offY:0.028, offX:0},
-    size:0.105, pos:'cc', maxLines:2,
-    accent:'#FFD9A0', accentStyle:'ornament',
-    subColor:'rgba(255,255,255,.92)', subBg:null, subTrack:true,
-    overlay:'spot',
-  },
 ];
 
 /* ================= 状态 ================= */
@@ -538,14 +526,6 @@ function drawCover(canvas, R, p, {guides=false}={}){
     const bot = g.createLinearGradient(0,h*0.6,0,h);
     bot.addColorStop(0,'rgba(8,8,14,0)'); bot.addColorStop(1,'rgba(8,8,14,.7)');
     g.fillStyle=bot; g.fillRect(0,h*0.6,w,h*0.4);
-  }else if(p.overlay==='spot'){
-    // 暗角聚光：四周渐暗、中心通透，视线收拢到标题
-    const r = Math.hypot(w,h)/2;
-    const rg = g.createRadialGradient(w/2, h*0.5, r*0.26, w/2, h*0.5, r*1.04);
-    rg.addColorStop(0,'rgba(6,6,12,0)');
-    rg.addColorStop(0.62,'rgba(6,6,12,.14)');
-    rg.addColorStop(1,'rgba(6,6,12,.82)');
-    g.fillStyle=rg; g.fillRect(0,0,w,h);
   }
 
   /* --- 文字 --- */
@@ -582,11 +562,6 @@ function drawCover(canvas, R, p, {guides=false}={}){
   if(p.pos==='bl'){ align='left'; x=pad; y=h-pad-subSpace; }
   else if(p.pos==='bc'){ align='center'; x=w/2; y=h-pad-subSpace; }
   else if(p.pos==='tl'){ align='left'; x=pad; y=pad+totalH; }
-  else if(p.pos==='cc'){
-    // 正中锚点：有副标题时整体上提，保持视觉重心居中
-    align='center'; x=w/2;
-    y=h/2 + totalH/2 - (hasSub ? u*0.045 : 0);
-  }
   else { align='center'; x=w/2; y=h/2+totalH/2; }
 
   g.textAlign = align;
@@ -597,16 +572,6 @@ function drawCover(canvas, R, p, {guides=false}={}){
   // 每行绘制
   lines.forEach((ln,i)=>{
     const by = y - totalH + (i+1)*lineH - (lineH - fs)/2;
-    // 柔光晕：把文字从底图上"托"出来（聚光字幕模板）
-    if(p.glow){
-      g.save();
-      g.shadowColor = p.glow;
-      g.shadowBlur = u * 0.12;
-      g.fillStyle = p.glow;
-      g.fillText(ln, x, by);
-      g.fillText(ln, x, by);
-      g.restore();
-    }
     if(p.shadow){
       g.shadowColor = p.shadow.color;
       g.shadowBlur = u * p.shadow.blur;
@@ -648,24 +613,6 @@ function drawCover(canvas, R, p, {guides=false}={}){
     g.fillStyle = 'rgba(255,255,255,.9)';
     const rx = align==='left' ? pad - u*0.028 : x - maxTextW/2 - u*0.028;
     g.fillRect(rx, accentY - u*0.006, u*0.007, totalH + (hasSub?subSpace:0));
-  }else if(p.accentStyle==='ornament' && lines.length){
-    // 冠饰：细线 — 菱形 — 细线，置于标题上方
-    const oy = y - totalH - u*0.055;
-    const cx = align==='center' ? x : (align==='left' ? pad + maxTextW/2 : x);
-    const lw = u*0.11, gap = u*0.014;
-    const th = Math.max(1, u*0.0016);
-    g.fillStyle = p.accent;
-    g.globalAlpha = .9;
-    g.fillRect(cx - gap - lw, oy, lw, th);
-    g.fillRect(cx + gap, oy, lw, th);
-    // 中心菱形
-    const d = u*0.0055;
-    g.save();
-    g.translate(cx, oy + th/2);
-    g.rotate(Math.PI/4);
-    g.fillRect(-d, -d, d*2, d*2);
-    g.restore();
-    g.globalAlpha = 1;
   }
 
   /* --- 副标题 --- */
@@ -674,33 +621,17 @@ function drawCover(canvas, R, p, {guides=false}={}){
     g.font = `700 ${sfs}px "Noto Sans SC"`;
     // subPos:'above' 时副标题置于标题上方
     const sy = p.subPos==='above' ? y - totalH - u*0.022 : y + u*0.045;
-    if(p.subTrack){
-      // 字距拉开 + 两侧细线（聚光字幕模板）
-      try{ g.letterSpacing = `${Math.round(sfs*0.32)}px`; }catch(e){}
-      g.fillStyle = p.subColor;
-      g.fillText(sub, align==='left'? pad : x, sy);
+    if(p.subBg){
       const tw = g.measureText(sub).width;
-      try{ g.letterSpacing = '0px'; }catch(e){}
-      const gap = u*0.022, hl = u*0.05;
-      const ly = sy - sfs*0.34;
-      const th = Math.max(1, u*0.0013);
-      g.fillStyle = 'rgba(255,255,255,.5)';
-      const left = align==='left' ? pad : x - tw/2;
-      g.fillRect(left - gap - hl, ly, hl, th);
-      g.fillRect(left + tw + gap, ly, hl, th);
-    }else{
-      if(p.subBg){
-        const tw = g.measureText(sub).width;
-        const bx = align==='left' ? pad : x - tw/2;
-        const bxPad = u*0.012, byPad = u*0.008;
-        g.fillStyle = p.subBg;
-        roundRect(g, bx - bxPad, sy - sfs - byPad + u*0.004, tw + bxPad*2, sfs + byPad*2, u*0.006);
-        g.fill();
-      }
-      g.fillStyle = p.subColor;
-      g.textAlign = align;
-      g.fillText(sub, align==='left'? pad : x, sy);
+      const bx = align==='left' ? pad : x - tw/2;
+      const bxPad = u*0.012, byPad = u*0.008;
+      g.fillStyle = p.subBg;
+      roundRect(g, bx - bxPad, sy - sfs - byPad + u*0.004, tw + bxPad*2, sfs + byPad*2, u*0.006);
+      g.fill();
     }
+    g.fillStyle = p.subColor;
+    g.textAlign = align;
+    g.fillText(sub, align==='left'? pad : x, sy);
   }
 
   /* --- 安全区参考线（仅预览） --- */
