@@ -642,6 +642,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
   // 竖屏 7%；16:9 宽画幅左右安全区加宽到 12%，4:3 稍窄 10%——
   // 平台 UI（进度条/点赞/文案区）和缩略图裁切都不怕
   const pad = w * (portrait ? 0.07 : (landscape ? 0.12 : 0.062));
+  const vpad = h * 0.05; // 垂直边距按高度算（5%），与左右边距解耦
   const maxW = w - pad*2;
   const u = Math.min(w,h); // 相对单位
 
@@ -670,10 +671,11 @@ function drawCover(canvas, R, p, {guides=false}={}){
   const hasSub = !!sub;
   const subSpace = hasSub ? u*0.045 + u*0.032 : 0;
   // 竖屏底边：从"贴底"上提到 ~86% 高度，避开平台底部 UI，构图更稳
-  const bottomY = portrait ? h*0.86 - subSpace : h - pad - subSpace;
+  // 横屏/方形：底边距按高度 5%（vpad），不再复用过宽的左右安全区
+  const bottomY = portrait ? h*0.86 - subSpace : h - vpad - subSpace;
   if(p.pos==='bl'){ align='left'; x=pad; y=bottomY; }
   else if(p.pos==='bc'){ align='center'; x=w/2; y=bottomY; }
-  else if(p.pos==='tl'){ align='left'; x=pad; y=pad+totalH; }
+  else if(p.pos==='tl'){ align='left'; x=pad; y=vpad+totalH; }
   else { align='center'; x=w/2; y=h/2+totalH/2; }
 
   g.textAlign = align;
@@ -758,7 +760,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
     const bxPad = u*0.016, byPad = u*0.009;
     const bw = tw + bxPad*2, bh = bfs + byPad*2;
     const bx = w - pad - bw;
-    const by = Math.max(pad*0.78, h*0.05); // 竖屏角标下移，避开平台顶栏/圆角
+    const by = portrait ? Math.max(pad*0.78, h*0.05) : h*0.05; // 顶部按高度 5%，竖屏略降避开平台顶栏
     if(b.style==='solid'){
       g.shadowColor='rgba(0,0,0,.35)'; g.shadowBlur=u*0.008; g.shadowOffsetY=u*0.004;
       g.fillStyle = b.bg;
