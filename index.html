@@ -407,6 +407,78 @@ const $ = id => document.getElementById(id);
 const preview = $('preview');
 const ctx = preview.getContext('2d');
 
+/* ================= 本地缓存（localStorage，刷新不丢） ================= */
+const STORE_KEY = 'cover-forge-v1';
+
+function saveStore(){
+  try{
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      title:state.title, subtitle:state.subtitle, badge:state.badge,
+      preset:state.preset, ratio:state.ratio,
+      zoom:state.zoom, dim:state.dim, guides:state.guides,
+      pan:state.pan,
+      img: state.imgData || null, // 底图 dataURL（压缩后）
+    }));
+  }catch(e){ /* 存储满（底图太大）时静默降级：只丢底图，其余照存 */
+    try{
+      localStorage.setItem(STORE_KEY, JSON.stringify({
+        title:state.title, subtitle:state.subtitle, badge:state.badge,
+        preset:state.preset, ratio:state.ratio,
+        zoom:state.zoom, dim:state.dim, guides:state.guides,
+        pan:state.pan, img:null,
+      }));
+    }catch(e2){}
+  }
+}
+
+function restoreStore(){
+  let s = null;
+  try{ s = JSON.parse(localStorage.getItem(STORE_KEY)); }catch(e){}
+  if(!s) return;
+  state.title = s.title || '';
+  state.subtitle = s.subtitle || '';
+  state.badge = s.badge || '';
+  state.preset = Math.min(s.preset||0, PRESETS.length-1);
+  state.ratio = Math.min(s.ratio||0, RATIOS.length-1);
+  state.zoom = s.zoom || 1;
+  state.dim = s.dim || 0;
+  state.guides = !!s.guides;
+  state.pan = (s.pan && typeof s.pan==='object') ? s.pan : {};
+  // 恢复表单控件显示
+  $('title').value = state.title;
+  $('titleCount').textContent = [...state.title].length;
+  $('subtitle').value = state.subtitle;
+  $('badge').value = state.badge;
+  $('badgeCount').textContent = [...state.badge].length;
+  $('zoom').value = state.zoom; $('zoomVal').textContent = state.zoom.toFixed(2)+'×';
+  $('dim').value = state.dim; $('dimVal').textContent = Math.round(state.dim*100)+'%';
+  $('guides').checked = state.guides;
+  // 恢复底图
+  if(s.img){
+    const img = new Image();
+    img.onload = ()=>{
+      state.img = img;
+      state.imgData = s.img;
+      enableExport(); render();
+    };
+    img.src = s.img;
+  }
+}
+
+// 底图转 dataURL 存储（限制到最长边 1600px，JPEG 0.85，控制体积）
+function cacheImage(img){
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide/Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth*scale);
+  c.height = Math.round(img.naturalHeight*scale);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  try{ state.imgData = c.toDataURL('image/jpeg', 0.85); }
+  catch(e){ state.imgData = null; }
+  saveStore();
+}
+
+
 /* ================= 模板卡片 ================= */
 const presetsBox = $('presets');
 PRESETS.forEach((p,i)=>{
@@ -420,7 +492,7 @@ PRESETS.forEach((p,i)=>{
   el.onclick = ()=>{
     state.preset = i;
     presetsBox.querySelectorAll('.preset').forEach((n,j)=>n.classList.toggle('on', j===i));
-    render();
+    render(); saveStore();
   };
   presetsBox.appendChild(el);
 });
@@ -439,7 +511,7 @@ RATIOS.forEach((r,i)=>{
   el.onclick = ()=>{
     state.ratio = i;
     rtabs.querySelectorAll('.rtab').forEach((n,j)=>n.classList.toggle('on', j===i));
-    render();
+    render(); saveStore();
   };
   rtabs.appendChild(el);
 });
@@ -456,7 +528,12 @@ function loadFile(f){
   if(!f || !f.type.startsWith('image/')) { toast('请选择图片文件'); return; }
   const url = URL.createObjectURL(f);
   const img = new Image();
-  img.onload = ()=>{ state.img = img; enableExport(); render(); toast('底图已载入'); };
+  img.onload = ()=>{
+    state.img = img;
+    state.pan = {}; // 换新图重置各尺寸构图
+    cacheImage(img);
+    enableExport(); render(); toast('底图已载入');
+  };
   img.src = url;
 }
 
@@ -482,7 +559,12 @@ $('btnSample').onclick = ()=>{
   for(let x=0;x<=1600;x+=40) g.lineTo(x, 720 - Math.abs(Math.sin(x*.006))*160 - Math.random()*40);
   g.lineTo(1600,1000); g.closePath(); g.fill();
   const img = new Image();
-  img.onload = ()=>{ state.img=img; enableExport(); render(); toast('已载入示例底图'); };
+  img.onload = ()=>{
+    state.img=img;
+    state.pan={};
+    cacheImage(img);
+    enableExport(); render(); toast('已载入示例底图');
+  };
   img.src = c.toDataURL();
 };
 
@@ -490,17 +572,17 @@ $('btnSample').onclick = ()=>{
 $('title').addEventListener('input', e=>{
   state.title = e.target.value;
   $('titleCount').textContent = [...state.title].length;
-  render();
+  render(); saveStore();
 });
-$('subtitle').addEventListener('input', e=>{ state.subtitle=e.target.value; render(); });
+$('subtitle').addEventListener('input', e=>{ state.subtitle=e.target.value; render(); saveStore(); });
 $('badge').addEventListener('input', e=>{
   state.badge=e.target.value;
   $('badgeCount').textContent=[...state.badge].length;
-  render();
+  render(); saveStore();
 });
-$('zoom').addEventListener('input', e=>{ state.zoom=+e.target.value; $('zoomVal').textContent=state.zoom.toFixed(2)+'×'; render(); });
-$('dim').addEventListener('input', e=>{ state.dim=+e.target.value; $('dimVal').textContent=Math.round(state.dim*100)+'%'; render(); });
-$('guides').addEventListener('change', e=>{ state.guides=e.target.checked; render(); });
+$('zoom').addEventListener('input', e=>{ state.zoom=+e.target.value; $('zoomVal').textContent=state.zoom.toFixed(2)+'×'; render(); saveStore(); });
+$('dim').addEventListener('input', e=>{ state.dim=+e.target.value; $('dimVal').textContent=Math.round(state.dim*100)+'%'; render(); saveStore(); });
+$('guides').addEventListener('change', e=>{ state.guides=e.target.checked; render(); saveStore(); });
 
 function enableExport(){ $('btnOne').disabled=false; $('btnAll').disabled=false; }
 
@@ -764,6 +846,7 @@ preview.addEventListener('pointermove', e=>{
   render();
 });
 ['pointerup','pointercancel'].forEach(ev=>preview.addEventListener(ev,()=>{
+  if(dragging) saveStore(); // 拖动结束后一次性保存
   dragging=false; preview.classList.remove('grabbing');
 }));
 function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
@@ -805,7 +888,13 @@ function toast(msg){
   setTimeout(()=>{ el.style.transition='.3s'; el.style.opacity='0'; setTimeout(()=>el.remove(),300); }, 2200);
 }
 
-/* ================= 字体就绪后首渲染 ================= */
+/* ================= 恢复缓存 + 字体就绪后首渲染 ================= */
+restoreStore();
+// 同步卡片/Tab 高亮到恢复的状态
+presetsBox.querySelectorAll('.preset').forEach((n,j)=>n.classList.toggle('on', j===state.preset));
+rtabs.querySelectorAll('.rtab').forEach((n,j)=>n.classList.toggle('on', j===state.ratio));
+if(state.img) enableExport();
+
 Promise.all([
   document.fonts.load('900 20px "Noto Sans SC"'),
   document.fonts.load('400 20px "ZCOOL QingKe HuangYou"'),
