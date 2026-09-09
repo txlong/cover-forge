@@ -377,6 +377,18 @@ const PRESETS = [
     subColor:'rgba(255,255,255,.82)', subBg:null,
     overlay:'bottom',
   },
+  {
+    name:'框线立体', desc:'断开圆角框·大字压线',
+    demo:'<span class="f-black" style="color:#fff;text-shadow:0 3px 10px rgba(0,0,0,.85);border:1.5px solid rgba(255,255,255,.85);border-bottom-color:transparent;border-left-color:transparent;border-right-color:transparent;border-radius:8px;padding:2px 8px 6px">框线立体</span>',
+    font:'"Noto Sans SC"', weight:900,
+    color:'#FFFFFF', stroke:null, strokeRatio:0,
+    shadow:{color:'rgba(0,0,0,.65)', blur:0.075, offY:0.028, offX:0},
+    size:0.125, pos:'fc', maxLines:2,
+    accent:null, accentStyle:'none',
+    subColor:'rgba(255,255,255,.92)', subBg:null, subPos:'above',
+    overlay:'v',
+    frame:{inset:0.048, radius:0.05, lineW:0.0042, color:'rgba(255,255,255,.88)'},
+  },
 ];
 
 /* ================= 状态 ================= */
@@ -562,12 +574,46 @@ function drawCover(canvas, R, p, {guides=false}={}){
   if(p.pos==='bl'){ align='left'; x=pad; y=h-pad-subSpace; }
   else if(p.pos==='bc'){ align='center'; x=w/2; y=h-pad-subSpace; }
   else if(p.pos==='tl'){ align='left'; x=pad; y=pad+totalH; }
+  else if(p.pos==='fc'){
+    // 框线压字：文字块（含上置副标题）中心压在底部框线上
+    align='center'; x=w/2;
+    const fb = h - u*(p.frame? p.frame.inset : 0.045);
+    const aboveExtra = (hasSub && p.subPos==='above') ? u*0.055 : 0;
+    y = fb + (totalH + aboveExtra)/2;
+  }
   else { align='center'; x=w/2; y=h/2+totalH/2; }
 
   g.textAlign = align;
   g.textBaseline = 'alphabetic';
   g.lineJoin = 'round';
   g.miterLimit = 2;
+
+  /* --- 立体圆角框线（文字下层，遇文字断开） --- */
+  if(p.frame){
+    const ins = u * p.frame.inset;
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const og = off.getContext('2d');
+    // 框线自带柔光投影，增强前后层次
+    og.shadowColor = 'rgba(0,0,0,.5)';
+    og.shadowBlur = u * 0.012;
+    og.strokeStyle = p.frame.color;
+    og.lineWidth = Math.max(1.5, u * p.frame.lineW);
+    roundRect(og, ins, ins, w - ins*2, h - ins*2, u * p.frame.radius);
+    og.stroke();
+    // 文字（及上置副标题）区域断开——线"躲开"文字，制造立体感
+    if(lines.length){
+      og.shadowColor = 'transparent';
+      og.globalCompositeOperation = 'destination-out';
+      const tLeft  = align==='left' ? pad : x - maxTextW/2;
+      const tRight = align==='left' ? pad + maxTextW : x + maxTextW/2;
+      const gPad = u * 0.032;
+      const gyTop = y - totalH - (hasSub && p.subPos==='above' ? u*0.075 : 0) - u*0.022;
+      const gyBot = y + u*0.028;
+      og.fillRect(tLeft - gPad, gyTop, (tRight - tLeft) + gPad*2, gyBot - gyTop);
+    }
+    g.drawImage(off, 0, 0);
+  }
 
   // 每行绘制
   lines.forEach((ln,i)=>{
@@ -619,7 +665,8 @@ function drawCover(canvas, R, p, {guides=false}={}){
   if(hasSub){
     const sfs = Math.round(u*0.032);
     g.font = `700 ${sfs}px "Noto Sans SC"`;
-    const sy = y + u*0.045;
+    // subPos:'above' 时副标题置于标题上方（框线立体模板用）
+    const sy = p.subPos==='above' ? y - totalH - u*0.022 : y + u*0.045;
     if(p.subBg){
       const tw = g.measureText(sub).width;
       const bx = align==='left' ? pad : x - tw/2;
