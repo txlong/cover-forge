@@ -530,32 +530,37 @@ function drawCover(canvas, R, p, {guides=false}={}){
 
   /* --- 模板遮罩 --- */
   if(p.overlay==='bottom'){
-    const gr = g.createLinearGradient(0, h*0.45, 0, h);
+    // 竖屏文字块更高，渐变起点相应上移，保证标题区域背景压暗
+    const gy = portrait ? h*0.48 : h*0.45;
+    const gr = g.createLinearGradient(0, gy, 0, h);
     gr.addColorStop(0,'rgba(8,8,14,0)');
     gr.addColorStop(1,'rgba(8,8,14,.62)');
-    g.fillStyle=gr; g.fillRect(0,h*0.45,w,h*0.55);
+    g.fillStyle=gr; g.fillRect(0,gy,w,h-gy);
   }else if(p.overlay==='v'){
-    const top = g.createLinearGradient(0,0,0,h*0.4);
+    const topEnd = portrait ? h*0.3 : h*0.4;   // 竖屏顶部渐变范围收窄
+    const botStart = portrait ? h*0.58 : h*0.6; // 竖屏底部渐变起点上移
+    const top = g.createLinearGradient(0,0,0,topEnd);
     top.addColorStop(0,'rgba(8,8,14,.55)'); top.addColorStop(1,'rgba(8,8,14,0)');
-    g.fillStyle=top; g.fillRect(0,0,w,h*0.4);
-    const bot = g.createLinearGradient(0,h*0.6,0,h);
+    g.fillStyle=top; g.fillRect(0,0,w,topEnd);
+    const bot = g.createLinearGradient(0,botStart,0,h);
     bot.addColorStop(0,'rgba(8,8,14,0)'); bot.addColorStop(1,'rgba(8,8,14,.7)');
-    g.fillStyle=bot; g.fillRect(0,h*0.6,w,h*0.4);
+    g.fillStyle=bot; g.fillRect(0,botStart,w,h-botStart);
   }
 
   /* --- 文字 --- */
   const title = state.title.trim() || '在这里输入标题';
   const sub = state.subtitle.trim();
-  const pad = w * 0.062;
+  const portrait = h/w > 1.15;              // 9:16、3:4 竖屏自适应
+  const pad = w * (portrait ? 0.07 : 0.062); // 竖屏留更多呼吸边距
   const maxW = w - pad*2;
   const u = Math.min(w,h); // 相对单位
 
-  let fs = Math.round(w * p.size);
+  let fs = Math.round(w * p.size * (portrait ? 1.16 : 1)); // 竖屏字号加大
   let lines, lineH;
 
   const layout = (size)=>{
     g.font = `${p.weight} ${size}px ${p.font}`;
-    lineH = size * 1.18;
+    lineH = size * (portrait ? 1.24 : 1.18);               // 竖屏行距放宽
     lines = wrapText(g, title, maxW);
   };
   layout(fs);
@@ -574,8 +579,10 @@ function drawCover(canvas, R, p, {guides=false}={}){
   let x, y, align;
   const hasSub = !!sub;
   const subSpace = hasSub ? u*0.045 + u*0.032 : 0;
-  if(p.pos==='bl'){ align='left'; x=pad; y=h-pad-subSpace; }
-  else if(p.pos==='bc'){ align='center'; x=w/2; y=h-pad-subSpace; }
+  // 竖屏底边：从"贴底"上提到 ~86% 高度，避开平台底部 UI，构图更稳
+  const bottomY = portrait ? h*0.86 - subSpace : h - pad - subSpace;
+  if(p.pos==='bl'){ align='left'; x=pad; y=bottomY; }
+  else if(p.pos==='bc'){ align='center'; x=w/2; y=bottomY; }
   else if(p.pos==='tl'){ align='left'; x=pad; y=pad+totalH; }
   else { align='center'; x=w/2; y=h/2+totalH/2; }
 
@@ -632,7 +639,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
 
   /* --- 副标题 --- */
   if(hasSub){
-    const sfs = Math.round(u*0.032);
+    const sfs = Math.round(u*0.032 * (portrait ? 1.15 : 1)); // 竖屏副标题稍大
     g.font = `700 ${sfs}px "Noto Sans SC"`;
     // subPos:'above' 时副标题置于标题上方
     const sy = p.subPos==='above' ? y - totalH - u*0.022 : y + u*0.045;
@@ -661,7 +668,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
     const bxPad = u*0.016, byPad = u*0.009;
     const bw = tw + bxPad*2, bh = bfs + byPad*2;
     const bx = w - pad - bw;
-    const by = pad*0.78;
+    const by = Math.max(pad*0.78, h*0.05); // 竖屏角标下移，避开平台顶栏/圆角
     if(b.style==='solid'){
       g.shadowColor='rgba(0,0,0,.35)'; g.shadowBlur=u*0.008; g.shadowOffsetY=u*0.004;
       g.fillStyle = b.bg;
