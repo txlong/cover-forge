@@ -332,6 +332,7 @@
 
 const RATIOS = [
   {key:'16-9', label:'横屏 16:9', sub:'B站/西瓜', w:1280, h:720},
+  {key:'4-3',  label:'横屏 4:3',  sub:'横版图文', w:1440, h:1080},
   {key:'9-16', label:'竖屏 9:16', sub:'抖音/视频号', w:1080, h:1920},
   {key:'1-1',  label:'方形 1:1',  sub:'小红书', w:1080, h:1080},
   {key:'3-4',  label:'竖屏 3:4',  sub:'公众号', w:1080, h:1440},
@@ -429,7 +430,11 @@ const rtabs = $('rtabs');
 RATIOS.forEach((r,i)=>{
   const el = document.createElement('div');
   el.className = 'rtab' + (i===state.ratio?' on':'');
-  const dim = r.w>=r.h ? [16,9] : (r.w===r.h?[11,11]:(r.key==='9-16'?[6,11]:[8,11]));
+  const dim = r.w===r.h ? [11,11]
+    : r.key==='16-9' ? [16,9]
+    : r.key==='4-3' ? [12,9]
+    : r.key==='9-16' ? [6,11]
+    : [8,11];
   el.innerHTML = `<span class="dim" style="width:${dim[0]}px;height:${dim[1]}px"></span>${r.label} <span style="opacity:.6;font-size:9px">${r.sub}</span>`;
   el.onclick = ()=>{
     state.ratio = i;
