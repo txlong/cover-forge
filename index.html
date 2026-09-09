@@ -556,7 +556,10 @@ function drawCover(canvas, R, p, {guides=false}={}){
   /* --- 文字 --- */
   const title = state.title.trim() || '在这里输入标题';
   const sub = state.subtitle.trim();
-  const pad = w * (portrait ? 0.07 : 0.062); // 竖屏留更多呼吸边距
+  const landscape = h/w < 1; // 横屏（16:9、4:3）
+  // 竖屏 7%；横屏加宽到 9%——宽画幅下文字更靠中，两侧留足安全区，
+  // 平台 UI（进度条/点赞/文案区）和缩略图裁切都不怕
+  const pad = w * (portrait ? 0.07 : (landscape ? 0.09 : 0.062));
   const maxW = w - pad*2;
   const u = Math.min(w,h); // 相对单位
 
