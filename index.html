@@ -669,7 +669,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
   // 位置锚点
   let x, y, align;
   const hasSub = !!sub;
-  const subSpace = hasSub ? u*0.045 + u*0.032 : 0;
+  const subSpace = hasSub ? u*0.075 + u*0.032 : 0;
   // 竖屏底边：从"贴底"上提到 ~86% 高度，避开平台底部 UI，构图更稳
   // 横屏/方形：底边距按高度 5%（vpad），不再复用过宽的左右安全区
   const bottomY = portrait ? h*0.86 - subSpace : h - vpad - subSpace;
@@ -733,8 +733,8 @@ function drawCover(canvas, R, p, {guides=false}={}){
   if(hasSub){
     const sfs = Math.round(u*0.032 * (portrait ? 1.15 : 1)); // 竖屏副标题稍大
     g.font = `700 ${sfs}px "Noto Sans SC"`;
-    // subPos:'above' 时副标题置于标题上方
-    const sy = p.subPos==='above' ? y - totalH - u*0.022 : y + u*0.045;
+    // subPos:'above' 时副标题置于标题上方；默认下方，间距 0.075u（约 2.3 倍副标题字号）
+    const sy = p.subPos==='above' ? y - totalH - u*0.022 : y + u*0.075;
     if(p.subBg){
       const tw = g.measureText(sub).width;
       const bx = align==='left' ? pad : x - tw/2;
