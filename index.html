@@ -508,6 +508,7 @@ function drawCover(canvas, R, p, {guides=false}={}){
   canvas.width = w; canvas.height = h;
   const g = canvas.getContext('2d');
   const pan = getPan(R.key);
+  const portrait = h/w > 1.15; // 9:16、3:4 竖屏自适应（遮罩与文字共用）
 
   g.fillStyle = '#101014';
   g.fillRect(0,0,w,h);
@@ -550,7 +551,6 @@ function drawCover(canvas, R, p, {guides=false}={}){
   /* --- 文字 --- */
   const title = state.title.trim() || '在这里输入标题';
   const sub = state.subtitle.trim();
-  const portrait = h/w > 1.15;              // 9:16、3:4 竖屏自适应
   const pad = w * (portrait ? 0.07 : 0.062); // 竖屏留更多呼吸边距
   const maxW = w - pad*2;
   const u = Math.min(w,h); // 相对单位
