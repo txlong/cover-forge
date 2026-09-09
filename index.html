@@ -271,8 +271,13 @@
         <div class="count"><span id="titleCount">0</span>/24</div>
       </div>
       <div class="field">
-        <label>副标题 / 期数 SUBTITLE</label>
-        <input type="text" id="subtitle" maxlength="30" placeholder="例：VOL.07 · 城市夜行记">
+        <label>副标题 SUBTITLE</label>
+        <input type="text" id="subtitle" maxlength="30" placeholder="例：城市夜行记">
+      </div>
+      <div class="field">
+        <label>角标 CORNER TAG</label>
+        <input type="text" id="badge" maxlength="12" placeholder="例：VOL.07">
+        <div class="count"><span id="badgeCount">0</span>/12</div>
       </div>
     </div>
 
@@ -343,6 +348,7 @@ const PRESETS = [
     accent:'#FFB020', accentStyle:'bar',
     subColor:'#FFD77E', subBg:'#101014',
     overlay:'bottom',
+    badge:{style:'solid', bg:'#FFB020', color:'#141414'},
   },
   {
     name:'黑金质感', desc:'金字·方黑体·居中',
@@ -354,6 +360,7 @@ const PRESETS = [
     accent:'#F6C453', accentStyle:'sides',
     subColor:'#EDE6D8', subBg:null,
     overlay:'v',
+    badge:{style:'outline', border:'#F6C453', color:'#F6C453'},
   },
   {
     name:'手写随笔', desc:'手写体·柔和阴影',
@@ -365,6 +372,7 @@ const PRESETS = [
     accent:'#FF9D5C', accentStyle:'underline',
     subColor:'#F3EBDD', subBg:'rgba(16,16,20,.72)',
     overlay:'bottom',
+    badge:{style:'solid', bg:'rgba(16,16,20,.72)', color:'#FFD9B0'},
   },
   {
     name:'杂志衬线', desc:'细衬线·极简留白',
@@ -376,6 +384,7 @@ const PRESETS = [
     accent:'#FFFFFF', accentStyle:'rule',
     subColor:'rgba(255,255,255,.82)', subBg:null,
     overlay:'bottom',
+    badge:{style:'plain', color:'rgba(255,255,255,.85)'},
   },
 ];
 
@@ -384,6 +393,7 @@ const state = {
   img:null,          // HTMLImageElement
   title:'',
   subtitle:'',
+  badge:'',
   preset:0,
   ratio:0,
   zoom:1,
@@ -478,6 +488,11 @@ $('title').addEventListener('input', e=>{
   render();
 });
 $('subtitle').addEventListener('input', e=>{ state.subtitle=e.target.value; render(); });
+$('badge').addEventListener('input', e=>{
+  state.badge=e.target.value;
+  $('badgeCount').textContent=[...state.badge].length;
+  render();
+});
 $('zoom').addEventListener('input', e=>{ state.zoom=+e.target.value; $('zoomVal').textContent=state.zoom.toFixed(2)+'×'; render(); });
 $('dim').addEventListener('input', e=>{ state.dim=+e.target.value; $('dimVal').textContent=Math.round(state.dim*100)+'%'; render(); });
 $('guides').addEventListener('change', e=>{ state.guides=e.target.checked; render(); });
@@ -632,6 +647,41 @@ function drawCover(canvas, R, p, {guides=false}={}){
     g.fillStyle = p.subColor;
     g.textAlign = align;
     g.fillText(sub, align==='left'? pad : x, sy);
+  }
+
+  /* --- 角标（右上角，样式随模板锁定） --- */
+  const badge = state.badge.trim();
+  if(badge && p.badge){
+    const b = p.badge;
+    const bfs = Math.round(u*0.026);
+    g.save();
+    try{ g.letterSpacing = `${Math.round(bfs*0.12)}px`; }catch(e){}
+    g.font = `700 ${bfs}px "Noto Sans SC"`;
+    const tw = g.measureText(badge).width;
+    const bxPad = u*0.016, byPad = u*0.009;
+    const bw = tw + bxPad*2, bh = bfs + byPad*2;
+    const bx = w - pad - bw;
+    const by = pad*0.78;
+    if(b.style==='solid'){
+      g.shadowColor='rgba(0,0,0,.35)'; g.shadowBlur=u*0.008; g.shadowOffsetY=u*0.004;
+      g.fillStyle = b.bg;
+      roundRect(g, bx, by, bw, bh, u*0.005);
+      g.fill();
+      g.shadowColor='transparent'; g.shadowBlur=0; g.shadowOffsetY=0;
+      g.fillStyle = b.color;
+    }else if(b.style==='outline'){
+      g.strokeStyle = b.border;
+      g.lineWidth = Math.max(1, u*0.0014);
+      roundRect(g, bx, by, bw, bh, u*0.005);
+      g.stroke();
+      g.fillStyle = b.color;
+    }else{ // plain：纯文字 + 下方细线
+      g.fillStyle = b.color;
+      g.fillRect(bx, by + bh - u*0.002, bw, Math.max(1, u*0.0012));
+    }
+    g.textAlign='center'; g.textBaseline='middle';
+    g.fillText(badge, bx + bw/2, by + bh/2 + bfs*0.04);
+    g.restore();
   }
 
   /* --- 安全区参考线（仅预览） --- */
